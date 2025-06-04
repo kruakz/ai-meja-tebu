@@ -80,30 +80,30 @@
 
       .container {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
         gap: 2rem;
         width: 100%;
-        max-width: 360px;
+        max-width: 720px;
+        justify-items: center;
       }
       .webcam-wrapper {
         width: 320px;
         height: 240px;
         background-color: #000;
         border: 2px solid #ddd;
-        border-radius: 4px;
+        border-radius: 2px;
         overflow: hidden;
         display: flex;
         justify-content: center;
         align-items: center;
         display: none;
       }
-
       .webcam-wrapper.visible {
         display: flex; /* Atau block, sesuai kebutuhan layout */
       }
       .results-wrapper {
-        width: 100%;
+        width: 50%;
         display: flex;
         flex-direction: column;
         gap: 1rem;
@@ -130,7 +130,7 @@
       .progress-bar-fill {
         height: 100%;
         width: 0%;
-        background-color: #d32f2f; /* warna default, bisa diganti/dinamiskan */
+        background-color: #d32f2f; 
         border-radius: 12px 0 0 12px;
         display: flex;
         align-items: center;
@@ -143,7 +143,6 @@
         transition: width 0.2s ease;
       }
 
-      /* Jika persentase sangat kecil (< 20%), teks di dalam fill dipindahkan ke luar (kanan) agar terbaca */
       .progress-bar-fill.small {
         justify-content: flex-start;
         padding-left: 8px;
@@ -158,11 +157,19 @@
         border-radius: 8px;
         padding: 1rem;
         background-color: #ffff;
-        width: fit-content;
+        width: 45rem;
         height: fit-content;
+        justify-content: space-between;
+        justify-items: center;
       "
     >
-      <div style=" flex: content; padding-bottom: 1rem; justify-content: center; text-align: center;">
+      <div
+        style="
+          flex: content;
+          padding-bottom: 1rem;
+          text-align: center;
+        "
+      >
         <h1>MONITORING PENILAIAN</h1>
         <a style="text-align: center">MUTU TEBU - PG. JATIROTO</a>
       </div>
@@ -178,7 +185,7 @@
           <div id="webcam-container"></div>
         </div>
 
-        <!-- Bagian Progress Bars Dinamis (akan di‐populate JS) -->
+        <div></div>
         <div class="results-wrapper" id="results-wrapper">
           <!-- Contoh bar baru akan ditambahkan di sini oleh JavaScript -->
         </div>
