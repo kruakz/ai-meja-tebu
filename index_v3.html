@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monitoring Penilaian – Mutu Tebu</title>
+
+    <!-- TensorFlow.js & Teachable Machine Image Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+      /* =========================
+       Gaya Global & Layout
+       ========================= */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #f9f9f9;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      h1 {
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+        text-align: center;
+      }
+
+      /* Wrapper tombol Start */
+      .button-wrapper {
+        margin-bottom: 1.5rem;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+      #start-button {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      #start-button:hover:not(:disabled) {
+        background-color: #45a049;
+      }
+      #start-button:disabled {
+        background-color: #aaa;
+        cursor: not-allowed;
+      }
+
+      #cancel-button {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        background-color: #a52a2a;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      #cancel-button:hover:not(:disabled) {
+        background-color: #ee4b2d;
+      }
+      #cancel-button:disabled {
+        background-color: #a52a2a;
+        cursor: not-allowed;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 2rem;
+        width: 100%;
+        max-width: 720px;
+        justify-items: center;
+      }
+      .webcam-wrapper {
+        width: 320px;
+        height: 240px;
+        background-color: #000;
+        border: 2px solid #ddd;
+        border-radius: 2px;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        display: none;
+      }
+      .webcam-wrapper.visible {
+        display: flex; /* Atau block, sesuai kebutuhan layout */
+      }
+      .results-wrapper {
+        width: 50%;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .class-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .class-label {
+        font-size: 0.95rem;
+        font-weight: 500;
+        display: flex;
+        justify-content: space-between;
+      }
+      .progress-bar-container {
+        width: 100%;
+        height: 24px;
+        background-color: #e0e0e0;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        width: 0%;
+        background-color: #d32f2f; 
+        border-radius: 12px 0 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 600;
+        box-sizing: border-box;
+        transition: width 0.2s ease;
+      }
+
+      .progress-bar-fill.small {
+        justify-content: flex-start;
+        padding-left: 8px;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      style="
+        border: 2px solid #aaaa;
+        border-radius: 8px;
+        padding: 1rem;
+        background-color: #ffff;
+        width: 45rem;
+        height: fit-content;
+        justify-content: space-between;
+        justify-items: center;
+      "
+    >
+      <div
+        style="
+          flex: content;
+          padding-bottom: 1rem;
+          text-align: center;
+        "
+      >
+        <h1>MONITORING PENILAIAN</h1>
+        <a style="text-align: center">MUTU TEBU - PG. JATIROTO</a>
+      </div>
+      <div class="button-wrapper" style="gap: 1rem">
+        <button id="cancel-button" type="button">Batal</button>
+
+        <button id="start-button" type="button">Mulai</button>
+      </div>
+
+      <div class="container">
+        <!-- Bagian Webcam (canvas otomatis di‐append) -->
+        <div class="webcam-wrapper">
+          <div id="webcam-container"></div>
+        </div>
+
+        <div></div>
+        <div class="results-wrapper" id="results-wrapper">
+          <!-- Contoh bar baru akan ditambahkan di sini oleh JavaScript -->
+        </div>
+      </div>
+    </div>
+    <script>
+      // Path folder model Teachable Machine (model.json, metadata.json, weights.bin)
+      const URL = "./model/";
+      let model, webcam, maxPredictions, rafId;
+
+      // Referensi elemen-elemen penting
+      const webcamWrapper = document.querySelector(".webcam-wrapper");
+      const resultsWrapper = document.getElementById("results-wrapper");
+      const startButton = document.getElementById("start-button");
+      const cancelButton = document.getElementById("cancel-button");
+
+      // Ketika tombol Start diklik → panggil init()
+      startButton.addEventListener("click", init);
+
+      // Ketika tombol Cancel diklik → panggil cancel()
+      cancelButton.addEventListener("click", cancel);
+
+      async function init() {
+        // 1. Load model Teachable Machine
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        // 2. Setup webcam (320×240, flip = true agar mirror)
+        const flip = true;
+        webcam = new tmImage.Webcam(320, 240, flip);
+        await webcam.setup();
+        await webcam.play();
+
+        // 3. Tampilkan kembali elemen webcam-wrapper (default: hidden)
+        webcamWrapper.classList.add("visible");
+
+        // 4. Append <canvas> streaming ke dalam #webcam-container
+        document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+        // 5. Siapkan bar untuk tiap kelas (dan reset isi sebelumnya)
+        resultsWrapper.innerHTML = "";
+        for (let i = 0; i < maxPredictions; i++) {
+          const className = model.getClassLabels()[i];
+          const rowDiv = document.createElement("div");
+          rowDiv.classList.add("class-row");
+
+          const labelBar = document.createElement("div");
+          labelBar.classList.add("class-label");
+          const leftLabel = document.createElement("span");
+          leftLabel.innerText = className;
+          const rightLabel = document.createElement("span");
+          rightLabel.innerText = "0%";
+          rightLabel.id = `label-${i}`;
+          labelBar.appendChild(leftLabel);
+          labelBar.appendChild(rightLabel);
+
+          const barContainer = document.createElement("div");
+          barContainer.classList.add("progress-bar-container");
+          const barFill = document.createElement("div");
+          barFill.classList.add("progress-bar-fill");
+          barFill.id = `fill-${i}`;
+          barFill.style.width = "0%";
+          barFill.innerText = "0%";
+          barContainer.appendChild(barFill);
+
+          rowDiv.appendChild(labelBar);
+          rowDiv.appendChild(barContainer);
+          resultsWrapper.appendChild(rowDiv);
+        }
+
+        // 6. Nonaktifkan tombol Start dan aktifkan tombol Cancel
+        startButton.disabled = true;
+        cancelButton.disabled = false;
+
+        // 7. Mulai loop prediksi (dengan menyimpan ID requestAnimationFrame)
+        rafId = window.requestAnimationFrame(loop);
+      }
+
+      // Fungsi loop (dipanggil setiap frame)
+      async function loop() {
+        webcam.update(); // Ambil frame baru
+        await predictAndUpdateBars(); // Prediksi + update progress bar
+        rafId = window.requestAnimationFrame(loop);
+      }
+
+      // Fungsi prediksi dan update progress bar
+      async function predictAndUpdateBars() {
+        const predictions = await model.predict(webcam.canvas);
+
+        // Mapping warna per nama kelas (A=Hijau Bagus, B=Biru Cukup, dst.)
+        const colorMap = {
+          A: "#4CAF50", // Hijau (Bagus)
+          B: "#2196F3", // Biru  (Cukup)
+          C: "#FFC107", // Kuning (Sedang)
+          D: "#FF9800", // Oranye (Buruk)
+          E: "#F44336", // Merah  (Sangat Buruk)
+        };
+
+        predictions.forEach((p, index) => {
+          const percent = p.probability * 100;
+          const percentText = percent.toFixed(1) + "%";
+
+          // Update label di samping kanan
+          const labelSpan = document.getElementById(`label-${index}`);
+          labelSpan.innerText = percentText;
+
+          // Update lebar & teks pada bar-fill
+          const fillDiv = document.getElementById(`fill-${index}`);
+          fillDiv.style.width = `${percent}%`;
+          fillDiv.innerText = percentText;
+
+          // Jika < 20%, pakai class 'small' agar teks tampil di kiri & warna gelap
+          if (percent < 20) {
+            fillDiv.classList.add("small");
+          } else {
+            fillDiv.classList.remove("small");
+          }
+
+          // Set warna bar berdasarkan nama kelas
+          const kelas = p.className;
+          if (colorMap[kelas]) {
+            fillDiv.style.backgroundColor = colorMap[kelas];
+          } else {
+            fillDiv.style.backgroundColor = "#9E9E9E"; // fallback
+          }
+        });
+      }
+
+      function cancel() {
+        cancelAnimationFrame(rafId);
+
+        if (webcam && webcam.stop) {
+          webcam.stop();
+        } else if (webcam && webcam.video && webcam.video.srcObject) {
+          webcam.video.srcObject.getTracks().forEach((track) => track.stop());
+        }
+
+        webcamWrapper.classList.remove("visible");
+
+        document.getElementById("webcam-container").innerHTML = "";
+
+        resultsWrapper.innerHTML = "";
+
+        startButton.disabled = false;
+        cancelButton.disabled = true;
+      }
+    </script>
+  </body>
+</html>
