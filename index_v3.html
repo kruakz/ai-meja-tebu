@@ -254,22 +254,18 @@
       cancelButton.addEventListener("click", cancel);
 
       async function init() {
-        // 1. Load model Teachable Machine
         const modelURL = URL + "model.json";
         const metadataURL = URL + "metadata.json";
         model = await tmImage.load(modelURL, metadataURL);
         maxPredictions = model.getTotalClasses();
 
-        // 2. Setup webcam (320×240, mirror = true)
         const flip = true;
         webcam = new tmImage.Webcam(320, 240, flip);
         await webcam.setup();
         await webcam.play();
 
-        // 3. Tampilkan webcam-wrapper
         webcamWrapper.classList.add("visible");
 
-        // 4. Append <canvas> ke #webcam-container
         document.getElementById("webcam-container").appendChild(webcam.canvas);
 
         // 5. Mulai drawLoop agar canvas menampilkan video live
@@ -306,31 +302,25 @@
           resultsWrapper.appendChild(rowDiv);
         }
 
-        // Aktifkan flag untuk live prediksi dan mulai predLoop
         isLivePredicting = true;
         predLoop();
 
-        // 7. Enable Capture & Cancel, disable Start
         startButton.disabled = true;
         captureButton.disabled = false;
         cancelButton.disabled = false;
 
-        // Sembunyikan preview awal
         previewWrapper.style.display = "none";
         previewImg.src = "";
       }
 
-      // Loop untuk update webcam canvas
       function drawLoop() {
         webcam.update();
         drawLoopId = requestAnimationFrame(drawLoop);
       }
 
-      // Loop untuk prediksi real-time, hanya jika isLivePredicting true
       async function predLoop() {
         if (!isLivePredicting) return;
 
-        // Jalankan prediksi pada frame webcam terkini
         const predictions = await model.predict(webcam.canvas);
 
         // Mapping warna per nama kelas
@@ -342,7 +332,6 @@
           E: "#F44336", // Merah  (Sangat Buruk)
         };
 
-        // Update progress bars secara real-time
         predictions.forEach((p, index) => {
           const percent = p.probability * 100;
           const percentText = percent.toFixed(1) + "%";
@@ -367,19 +356,15 @@
       }
 
       async function capture() {
-        // 1. Nonaktifkan live prediksi dan hentikan predLoop
         isLivePredicting = false;
         cancelAnimationFrame(predLoopId);
 
-        // 2. Ambil snapshot sebagai dataURL → tampilkan preview
         const dataURL = webcam.canvas.toDataURL("image/png");
         previewImg.src = dataURL;
         previewWrapper.style.display = "block";
 
-        // 3. Jalankan sekali lagi predict untuk mengonfirmasi nilai terakhir
         const prediction = await model.predict(webcam.canvas);
 
-        // Mapping warna per nama kelas
         const colorMap = {
           A: "#4CAF50",
           B: "#2196F3",
@@ -409,37 +394,29 @@
           }
         });
 
-        // 4. Disable tombol Capture, biarkan tombol Cancel tetap aktif
         captureButton.disabled = true;
       }
 
       function cancel() {
-        // 1. Hentikan kedua loop (drawLoop dan predLoop)
         cancelAnimationFrame(drawLoopId);
         cancelAnimationFrame(predLoopId);
 
-        // 2. Hentikan webcam
         if (webcam && webcam.stop) {
           webcam.stop();
         } else if (webcam && webcam.video && webcam.video.srcObject) {
           webcam.video.srcObject.getTracks().forEach((track) => track.stop());
         }
 
-        // 3. Sembunyikan webcam-wrapper
         webcamWrapper.classList.remove("visible");
 
-        // 4. Kosongkan elemen #webcam-container
         document.getElementById("webcam-container").innerHTML = "";
 
-        // 5. Kosongkan hasil progress bars
         resultsWrapper.innerHTML = "";
 
-        // 6. Reset tombol: enable Start, disable Capture & Cancel
         startButton.disabled = false;
         captureButton.disabled = true;
         cancelButton.disabled = true;
 
-        // 7. Sembunyikan preview
         previewWrapper.style.display = "none";
         previewImg.src = "";
       }
