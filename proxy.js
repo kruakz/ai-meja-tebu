@@ -1,17 +1,17 @@
 // proxy.js
 
-const express     = require('express');
+const express = require('express');
 const DigestFetch = require('digest-fetch').DigestClient;
-const app         = express();
+const app = express();
 
 const CAMERA_URL = "http://10.10.12.227/ISAPI/Streaming/channels/1/picture?0=0";
 
-=const USERNAME = "admin";
+const USERNAME = "admin";
 const PASSWORD = "Admin888cap";
 
-=const client = new DigestFetch(USERNAME, PASSWORD);
+const client = new DigestFetch(USERNAME, PASSWORD);
 
-=app.get('/', (req, res) => {
+app.get('/', (req, res) => {
   res.send(
     '<h3>Proxy Kamera (Digest Auth)</h3>' +
     '<p>Akses <a href="/proxy-frame">/proxy-frame</a> untuk snapshot.</p>'
@@ -31,7 +31,7 @@ app.get('/proxy-frame', async (req, res) => {
       return;
     }
 
-=    const arrayBuf = await response.arrayBuffer();
+    const arrayBuf = await response.arrayBuffer();
     const imgBuffer = Buffer.from(arrayBuf);
 
     res.type(response.headers.get('content-type') || 'image/jpeg');
