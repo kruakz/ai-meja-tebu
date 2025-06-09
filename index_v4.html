@@ -199,7 +199,7 @@
     <div class="button-wrapper">
       <button id="start-button">Mulai</button>
       <button id="capture-button" disabled>Capture</button>
-      <button id="cancel-button" disabled>Batal</button>
+      <button id="cancel-button" disabled>Nilai Ulang</button>
     </div>
 
     <div class="container">
@@ -223,15 +223,12 @@
       const PROXY_URL = "http://localhost:3000/proxy-frame";
       const FETCH_INTERVAL = 500; // milidetik
 
-      // Path model Teachable Machine
       const MODEL_PATH = "./model/";
       let model, maxPredictions;
 
-      // Kontrol loop fetch & prediksi
       let fetchTimeoutId, predLoopId;
       let isLivePredicting = false;
 
-      // Referensi elemen
       const startButton = document.getElementById("start-button");
       const captureButton = document.getElementById("capture-button");
       const cancelButton = document.getElementById("cancel-button");
@@ -373,10 +370,10 @@
 
         const dataURL = cameraCanvas.toDataURL("image/png");
         previewImg.src = dataURL;
-        previewWrapper.classList.add("visible");
-        previewWrapper.style.display = "block";
 
+        // Lakukan prediksi lebih awal agar hasilnya tersedia di previewImg.onload
         const prediction = await model.predict(cameraCanvas);
+
         const colorMap = {
           A: "#4CAF50",
           B: "#2196F3",
@@ -384,6 +381,8 @@
           D: "#FF9800",
           E: "#F44336",
         };
+
+        // Proses visualisasi bar
         prediction.forEach((p, index) => {
           const percent = p.probability * 100;
           const percentText = percent.toFixed(1) + "%";
@@ -401,28 +400,98 @@
           }
         });
 
-        captureButton.disabled = true;
+        previewImg.onload = () => {
+          const previewCanvas = document.createElement("canvas");
+          previewCanvas.width = cameraCanvas.width * 2; // Perbesar preview
+          previewCanvas.height = cameraCanvas.height * 2; // Perbesar preview
+          previewCanvas.style.width = "100%"; // Sesuaikan lebar
+          previewCanvas.style.height = "auto"; // Sesuaikan tinggi
+
+          const ctx = previewCanvas.getContext("2d");
+          ctx.drawImage(
+            previewImg,
+            0,
+            0,
+            previewCanvas.width,
+            previewCanvas.height
+          );
+
+          // Temukan prediksi tertinggi
+          const topPrediction = prediction.reduce((max, p) =>
+            p.probability > max.probability ? p : max
+          );
+
+          ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+          ctx.fillRect(20, 20, 250, 40);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "22px Arial";
+          ctx.fillText(
+            `Hasil: ${topPrediction.className} (${(
+              topPrediction.probability * 100
+            ).toFixed(1)}%)`,
+            30,
+            48
+          );
+
+          // Ganti preview
+          previewWrapper.innerHTML = "";
+          previewWrapper.appendChild(previewCanvas);
+          previewWrapper.classList.add("visible");
+          previewWrapper.style.display = "block";
+        };
       }
 
       // 5. cancel(): reset penuh
       function cancel() {
+        isLivePredicting = false;
         clearTimeout(fetchTimeoutId);
         cancelAnimationFrame(predLoopId);
-        isLivePredicting = false;
 
+        // Reset canvas
         cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
 
-        webcamWrapper.classList.remove("visible");
-        webcamWrapper.style.display = "none";
-
+        // Reset progress bars
         resultsWrapper.innerHTML = "";
+        for (let i = 0; i < maxPredictions; i++) {
+          const className = model.getClassLabels()[i];
+          const rowDiv = document.createElement("div");
+          rowDiv.classList.add("class-row");
 
+          const labelBar = document.createElement("div");
+          labelBar.classList.add("class-label");
+          const leftLabel = document.createElement("span");
+          leftLabel.innerText = className;
+          const rightLabel = document.createElement("span");
+          rightLabel.innerText = "0%";
+          rightLabel.id = `label-${i}`;
+          labelBar.appendChild(leftLabel);
+          labelBar.appendChild(rightLabel);
+
+          const barContainer = document.createElement("div");
+          barContainer.classList.add("progress-bar-container");
+          const barFill = document.createElement("div");
+          barFill.classList.add("progress-bar-fill");
+          barFill.id = `fill-${i}`;
+          barFill.style.width = "0%";
+          barFill.innerText = "0%";
+          barContainer.appendChild(barFill);
+
+          rowDiv.appendChild(labelBar);
+          rowDiv.appendChild(barContainer);
+          resultsWrapper.appendChild(rowDiv);
+        }
+
+        // Reset tombol
         startButton.disabled = false;
         captureButton.disabled = true;
         cancelButton.disabled = true;
 
+        // Sembunyikan webcam dan preview
+        webcamWrapper.classList.remove("visible");
         previewWrapper.classList.remove("visible");
         previewWrapper.style.display = "none";
+        resultsWrapper.innerHTML = "";
         previewImg.src = "";
       }
     </script>

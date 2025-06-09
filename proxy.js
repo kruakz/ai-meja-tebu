@@ -7,7 +7,7 @@ const app = express();
 const CAMERA_URL = "http://10.10.12.227/ISAPI/Streaming/channels/1/picture?0=0";
 
 const USERNAME = "admin";
-const PASSWORD = "Admin888cap";
+const PASSWORD = "Admin888";
 
 const client = new DigestFetch(USERNAME, PASSWORD);
 
