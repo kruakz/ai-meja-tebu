@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monitoring Penilaian – Mutu Tebu</title>
+
+    <!-- TensorFlow.js & Teachable Machine Image Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #f9f9f9;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      h1 {
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+        text-align: center;
+      }
+      a.subtitle {
+        margin-bottom: 1rem;
+        text-align: center;
+        display: block;
+        font-size: 1rem;
+        color: #555;
+      }
+
+      .button-wrapper {
+        margin-bottom: 1.5rem;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+      }
+      button {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        color: white;
+      }
+      button:disabled {
+        background-color: #aaa;
+        cursor: not-allowed;
+      }
+      #start-button {
+        background-color: #4caf50;
+      }
+      #start-button:hover:not(:disabled) {
+        background-color: #45a049;
+      }
+      #capture-button {
+        background-color: #2196f3;
+      }
+      #capture-button:hover:not(:disabled) {
+        background-color: #1976d2;
+      }
+      #cancel-button {
+        background-color: #f44336;
+      }
+      #cancel-button:hover:not(:disabled) {
+        background-color: #d32f2f;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 2rem;
+        width: 100%;
+        max-width: 900px;
+      }
+
+      .left-column {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        flex: 1;
+        min-width: 320px;
+      }
+      .webcam-wrapper {
+        width: 100%;
+        height: 0;
+        padding-top: 75%; /* rasio 4:3 */
+        background-color: #000;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+        display: none;
+      }
+      .webcam-wrapper.visible {
+        display: block;
+      }
+      #camera-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .preview-wrapper {
+        width: 100%;
+        background-color: #fff;
+        border: 2px solid #ccc;
+        border-radius: 4px;
+        overflow: hidden;
+        display: none;
+      }
+      .preview-wrapper.visible {
+        display: block;
+      }
+      .preview-label {
+        text-align: center;
+        background-color: #f5f5f5;
+        padding: 0.5rem;
+        font-size: 0.9rem;
+        color: #555;
+      }
+      #preview-img {
+        width: 100%;
+        display: block;
+      }
+
+      .results-wrapper {
+        flex: 1;
+        min-width: 300px;
+        background-color: #fff;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        padding: 1rem;
+        max-height: 75vh;
+        overflow-y: auto;
+      }
+      .class-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        margin-bottom: 0.5rem;
+      }
+      .class-label {
+        font-size: 0.95rem;
+        font-weight: 500;
+        display: flex;
+        justify-content: space-between;
+      }
+      .progress-bar-container {
+        width: 100%;
+        height: 20px;
+        background-color: #e0e0e0;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        width: 0%;
+        background-color: #d32f2f;
+        border-radius: 12px 0 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 600;
+        box-sizing: border-box;
+        transition: width 0.2s ease;
+      }
+      .progress-bar-fill.small {
+        justify-content: flex-start;
+        padding-left: 8px;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>MONITORING PENILAIAN</h1>
+    <a class="subtitle">MUTU TEBU - PG. JATIROTO</a>
+
+    <div class="button-wrapper">
+      <button id="start-button">Mulai</button>
+      <button id="capture-button" disabled>Capture</button>
+      <button id="cancel-button" disabled>Nilai Ulang</button>
+    </div>
+
+    <div class="container">
+      <!-- Kolom Kiri: Canvas + Preview -->
+      <div class="left-column">
+        <div class="webcam-wrapper" id="webcam-wrapper">
+          <canvas id="camera-canvas" width="320" height="240"></canvas>
+        </div>
+        <div class="preview-wrapper" id="preview-wrapper">
+          <div class="preview-label">Hasil Capture:</div>
+          <img id="preview-img" src="" alt="Preview Capture" />
+        </div>
+      </div>
+
+      <!-- Kolom Kanan: Progress Bars -->
+      <div class="results-wrapper" id="results-wrapper"></div>
+    </div>
+
+    <script>
+      // URL proxy yang sudah terbukti berhasil:
+      const PROXY_URL = "http://localhost:3000/proxy-frame";
+      const FETCH_INTERVAL = 500; // milidetik
+
+      const MODEL_PATH = "./model/";
+      let model, maxPredictions;
+
+      let fetchTimeoutId, predLoopId;
+      let isLivePredicting = false;
+
+      const startButton = document.getElementById("start-button");
+      const captureButton = document.getElementById("capture-button");
+      const cancelButton = document.getElementById("cancel-button");
+
+      const webcamWrapper = document.getElementById("webcam-wrapper");
+      const cameraCanvas = document.getElementById("camera-canvas");
+      const cameraCtx = cameraCanvas.getContext("2d");
+
+      const resultsWrapper = document.getElementById("results-wrapper");
+      const previewWrapper = document.getElementById("preview-wrapper");
+      const previewImg = document.getElementById("preview-img");
+
+      // Pasang event listener
+      startButton.addEventListener("click", init);
+      captureButton.addEventListener("click", capture);
+      cancelButton.addEventListener("click", cancel);
+
+      // 1. Inisialisasi: load model & mulai streaming + prediksi
+      async function init() {
+        // Load model
+        const modelURL = MODEL_PATH + "model.json";
+        const metadataURL = MODEL_PATH + "metadata.json";
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        // Tampilkan wrapper canvas
+        webcamWrapper.classList.add("visible");
+
+        // Setup progress bars kosong
+        resultsWrapper.innerHTML = "";
+        for (let i = 0; i < maxPredictions; i++) {
+          const className = model.getClassLabels()[i];
+          const rowDiv = document.createElement("div");
+          rowDiv.classList.add("class-row");
+
+          const labelBar = document.createElement("div");
+          labelBar.classList.add("class-label");
+          const leftLabel = document.createElement("span");
+          leftLabel.innerText = className;
+          const rightLabel = document.createElement("span");
+          rightLabel.innerText = "0%";
+          rightLabel.id = `label-${i}`;
+          labelBar.appendChild(leftLabel);
+          labelBar.appendChild(rightLabel);
+
+          const barContainer = document.createElement("div");
+          barContainer.classList.add("progress-bar-container");
+          const barFill = document.createElement("div");
+          barFill.classList.add("progress-bar-fill");
+          barFill.id = `fill-${i}`;
+          barFill.style.width = "0%";
+          barFill.innerText = "0%";
+          barContainer.appendChild(barFill);
+
+          rowDiv.appendChild(labelBar);
+          rowDiv.appendChild(barContainer);
+          resultsWrapper.appendChild(rowDiv);
+        }
+
+        // Mulai fetch frame & prediksi
+        isLivePredicting = true;
+        fetchFrame();
+        predLoop();
+
+        // Set tombol
+        startButton.disabled = true;
+        captureButton.disabled = false;
+        cancelButton.disabled = false;
+
+        // Sembunyikan preview awal
+        previewWrapper.classList.remove("visible");
+        previewWrapper.style.display = "none";
+        previewImg.src = "";
+      }
+
+      // 2. fetchFrame(): ambil frame dari proxy & gambar ke canvas
+      function fetchFrame() {
+        if (!isLivePredicting) return;
+
+        fetch(PROXY_URL)
+          .then((response) => {
+            if (!response.ok) throw new Error("Gagal fetch frame");
+            return response.blob();
+          })
+          .then((blob) => createImageBitmap(blob))
+          .then((imageBitmap) => {
+            cameraCtx.drawImage(
+              imageBitmap,
+              0,
+              0,
+              cameraCanvas.width,
+              cameraCanvas.height
+            );
+            fetchTimeoutId = setTimeout(fetchFrame, FETCH_INTERVAL);
+          })
+          .catch((err) => {
+            console.warn("Error fetching frame:", err);
+            fetchTimeoutId = setTimeout(fetchFrame, FETCH_INTERVAL);
+          });
+      }
+
+      // 3. predLoop(): jalankan prediksi real-time pada frame canvas
+      async function predLoop() {
+        if (!isLivePredicting) return;
+
+        const predictions = await model.predict(cameraCanvas);
+        const colorMap = {
+          A: "#4CAF50",
+          B: "#2196F3",
+          C: "#FFC107",
+          D: "#FF9800",
+          E: "#F44336",
+        };
+
+        predictions.forEach((p, index) => {
+          const percent = p.probability * 100;
+          const percentText = percent.toFixed(1) + "%";
+
+          const labelSpan = document.getElementById(`label-${index}`);
+          if (labelSpan) labelSpan.innerText = percentText;
+
+          const fillDiv = document.getElementById(`fill-${index}`);
+          if (fillDiv) {
+            fillDiv.style.width = `${percent}%`;
+            fillDiv.innerText = percentText;
+            if (percent < 20) fillDiv.classList.add("small");
+            else fillDiv.classList.remove("small");
+            fillDiv.style.backgroundColor = colorMap[p.className] || "#9E9E9E";
+          }
+        });
+
+        predLoopId = requestAnimationFrame(predLoop);
+      }
+
+      // 4. capture(): freeze progress bar + tampilkan preview
+      async function capture() {
+        isLivePredicting = false;
+        cancelAnimationFrame(predLoopId);
+
+        const dataURL = cameraCanvas.toDataURL("image/png");
+        previewImg.src = dataURL;
+
+        // Lakukan prediksi lebih awal agar hasilnya tersedia di previewImg.onload
+        const prediction = await model.predict(cameraCanvas);
+
+        const colorMap = {
+          A: "#4CAF50",
+          B: "#2196F3",
+          C: "#FFC107",
+          D: "#FF9800",
+          E: "#F44336",
+        };
+
+        // Proses visualisasi bar
+        prediction.forEach((p, index) => {
+          const percent = p.probability * 100;
+          const percentText = percent.toFixed(1) + "%";
+
+          const labelSpan = document.getElementById(`label-${index}`);
+          if (labelSpan) labelSpan.innerText = percentText;
+
+          const fillDiv = document.getElementById(`fill-${index}`);
+          if (fillDiv) {
+            fillDiv.style.width = `${percent}%`;
+            fillDiv.innerText = percentText;
+            if (percent < 20) fillDiv.classList.add("small");
+            else fillDiv.classList.remove("small");
+            fillDiv.style.backgroundColor = colorMap[p.className] || "#9E9E9E";
+          }
+        });
+
+        previewImg.onload = () => {
+          const previewCanvas = document.createElement("canvas");
+          previewCanvas.width = cameraCanvas.width * 2; // Perbesar preview
+          previewCanvas.height = cameraCanvas.height * 2; // Perbesar preview
+          previewCanvas.style.width = "100%"; // Sesuaikan lebar
+          previewCanvas.style.height = "auto"; // Sesuaikan tinggi
+
+          const ctx = previewCanvas.getContext("2d");
+          ctx.drawImage(
+            previewImg,
+            0,
+            0,
+            previewCanvas.width,
+            previewCanvas.height
+          );
+
+          // Temukan prediksi tertinggi
+          const topPrediction = prediction.reduce((max, p) =>
+            p.probability > max.probability ? p : max
+          );
+
+          ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+          ctx.fillRect(20, 20, 250, 40);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "22px Arial";
+          ctx.fillText(
+            `Hasil: ${topPrediction.className} (${(
+              topPrediction.probability * 100
+            ).toFixed(1)}%)`,
+            30,
+            48
+          );
+
+          // Ganti preview
+          previewWrapper.innerHTML = "";
+          previewWrapper.appendChild(previewCanvas);
+          previewWrapper.classList.add("visible");
+          previewWrapper.style.display = "block";
+        };
+      }
+
+      // 5. cancel(): reset penuh
+      function cancel() {
+        isLivePredicting = false;
+        clearTimeout(fetchTimeoutId);
+        cancelAnimationFrame(predLoopId);
+
+        // Reset canvas
+        cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+
+        // Reset progress bars
+        resultsWrapper.innerHTML = "";
+        for (let i = 0; i < maxPredictions; i++) {
+          const className = model.getClassLabels()[i];
+          const rowDiv = document.createElement("div");
+          rowDiv.classList.add("class-row");
+
+          const labelBar = document.createElement("div");
+          labelBar.classList.add("class-label");
+          const leftLabel = document.createElement("span");
+          leftLabel.innerText = className;
+          const rightLabel = document.createElement("span");
+          rightLabel.innerText = "0%";
+          rightLabel.id = `label-${i}`;
+          labelBar.appendChild(leftLabel);
+          labelBar.appendChild(rightLabel);
+
+          const barContainer = document.createElement("div");
+          barContainer.classList.add("progress-bar-container");
+          const barFill = document.createElement("div");
+          barFill.classList.add("progress-bar-fill");
+          barFill.id = `fill-${i}`;
+          barFill.style.width = "0%";
+          barFill.innerText = "0%";
+          barContainer.appendChild(barFill);
+
+          rowDiv.appendChild(labelBar);
+          rowDiv.appendChild(barContainer);
+          resultsWrapper.appendChild(rowDiv);
+        }
+
+        // Reset tombol
+        startButton.disabled = false;
+        captureButton.disabled = true;
+        cancelButton.disabled = true;
+
+        // Sembunyikan webcam dan preview
+        webcamWrapper.classList.remove("visible");
+        previewWrapper.classList.remove("visible");
+        previewWrapper.style.display = "none";
+        resultsWrapper.innerHTML = "";
+        previewImg.src = "";
+      }
+    </script>
+  </body>
+</html>
